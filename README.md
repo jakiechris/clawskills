@@ -41,6 +41,71 @@ Quick comparison (high-level):
 
 See full usage and examples in: `skills/chrome-devtools/SKILL.md` (contains detailed mcporter command examples).
 
+### markitdown
+
+- **Name:** markitdown
+- **Source:** MarkItDown MCP (microsoft/markitdown)
+- **Purpose:** Convert Office documents, PDFs, images, audio and web pages to Markdown.
+- **Description:** A small MCP server around Microsoft's MarkItDown converter. It exposes one tool, `convert_to_markdown(uri)`, and accepts `file:`, `http:`, `https:` and `data:` URIs. Word, Excel, PowerPoint, text PDFs, HTML, CSV/JSON/XML, EPUB, ZIP, audio and YouTube links all come back as Markdown that an LLM can read directly.
+
+Advantages (why choose markitdown):
+- One tool, broad format coverage, minimal setup.
+- Office files become clean Markdown tables and headings, one section per sheet or slide.
+- Good default for "read this file and summarize it".
+
+Limits:
+- No OCR: scanned PDFs and photos of text convert to little or nothing.
+- Images return EXIF metadata only (plus an optional LLM caption); use docling for image text.
+
+See full usage and examples in: `skills/markitdown/SKILL.md`.
+
+### docling
+
+- **Name:** docling
+- **Source:** Docling MCP (docling-project/docling-mcp)
+- **Purpose:** Structured parsing of PDFs, Office files and images with layout, tables and OCR.
+- **Description:** Wraps IBM's Docling pipeline in MCP. A file is converted once into a cached `DoclingDocument`; tools then export Markdown, save Markdown plus JSON, search text, or read individual items by anchor. The local pipeline runs OCR and table-structure detection, so scanned PDFs, screenshots and complex tables are handled properly.
+
+Advantages (why choose docling):
+- OCR for scans and images.
+- Reading order, page numbers and table structure are preserved.
+- Page-level export and anchor-based search instead of one large dump.
+- Local mode needs no external service; remote mode can reuse a Docling Serve deployment.
+
+Limits:
+- First local conversion downloads several hundred MB of models and is slow on CPU.
+- Heavier than markitdown for simple, clean files.
+
+See full usage and examples in: `skills/docling/SKILL.md`.
+
+### excel
+
+- **Name:** excel
+- **Source:** Excel MCP Server (haris-musa/excel-mcp-server)
+- **Purpose:** Read and edit Excel workbooks (`.xlsx`, `.xlsm`, `.xltx`, `.xltm`) without Microsoft Excel.
+- **Description:** Built on `openpyxl`, this server exposes 46 tools for sheets, ranges, formulas, tables, charts, PivotTables and CSV import/export. Agents can list sheets, read a specific range as values or formulas, search cells, and write results back atomically.
+
+Advantages (why choose excel):
+- Cell-level access instead of a whole-file Markdown dump.
+- Formula-aware reads and a built-in calculation engine for files never opened in Excel.
+- Read-only mode and folder confinement (`--allow-dir`) for safe parsing.
+
+Limits:
+- Spreadsheets only; use markitdown or docling for Word, PowerPoint and PDF.
+- Legacy `.xls` is not supported.
+
+See full usage and examples in: `skills/excel/SKILL.md`.
+
+### Which file-parsing skill?
+
+| Task | Skill |
+| --- | --- |
+| Read a DOCX/PPTX/XLSX/PDF and summarize it | `markitdown` |
+| OCR a scanned PDF, screenshot or photo | `docling` |
+| Keep table layout and page structure | `docling` |
+| Read one Excel range, formula or sheet | `excel` |
+| Write data back to an `.xlsx` file | `excel` |
+
 ---
 
 ## Important Recommendation
@@ -62,9 +127,14 @@ Note: Do this only if you understand the change and its implications for your Op
 
 1. Install mcporter (required to call MCP servers):
    - npm: `npm install -g mcporter`
-2. Browse this repository's skills:
+2. Install a file-parsing server on demand (Python servers are easiest to run with [uv](https://docs.astral.sh/uv/)):
+   - `uvx --from markitdown-mcp markitdown-mcp`
+   - `uvx excel-mcp-server stdio`
+   - `uvx --from 'docling-mcp[local]' docling-mcp-server --transport stdio`
+3. Browse this repository's skills:
    - Example: `skills/chrome-devtools/SKILL.md`
-3. Example commands:
+   - File parsing: `skills/markitdown/SKILL.md`, `skills/docling/SKILL.md`, `skills/excel/SKILL.md`
+4. Example commands:
    - Open a new page:
      ```
      mcporter call chrome-devtools.new_page url="https://example.com"
@@ -76,6 +146,18 @@ Note: Do this only if you understand the change and its implications for your Op
    - Fill a form field:
      ```
      mcporter call chrome-devtools.fill uid="2_6" value="John"
+     ```
+   - Convert a Word file to Markdown:
+     ```
+     mcporter call markitdown.convert_to_markdown uri="file:///home/me/report.docx"
+     ```
+   - Read a range from an Excel workbook:
+     ```
+     mcporter call excel.read_range path="q1.xlsx" sheet="Sales" range="A1:D10"
+     ```
+   - OCR a scanned PDF with Docling:
+     ```
+     mcporter call docling.convert_document_into_docling_document source="/home/me/scan.pdf"
      ```
 
 ---
@@ -91,9 +173,12 @@ Note: Do this only if you understand the change and its implications for your Op
 ## Resources
 
 - Chrome DevTools MCP repository: https://github.com/ChromeDevTools/chrome-devtools-mcp  
+- MarkItDown: https://github.com/microsoft/markitdown  
+- Docling MCP: https://github.com/docling-project/docling-mcp  
+- Excel MCP Server: https://github.com/haris-musa/excel-mcp-server  
 - mcporter documentation: http://mcporter.dev  
 - See each skill's detailed usage in its SKILL.md under `skills/<skill-name>/`
 
 ---
 
-Last updated: 2026-03-07
+Last updated: 2026-11-01
