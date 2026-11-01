@@ -62,7 +62,8 @@ Local mode:
         "DOCLING_MCP_DO_OCR": "true",
         "DOCLING_MCP_DO_TABLE_STRUCTURE": "true",
         "CACHE_DIR": "/home/me/.cache/docling-mcp"
-      }
+      },
+      "lifecycle": { "mode": "keep-alive", "idleTimeoutMs": 1800000 }
     }
   }
 }
@@ -80,7 +81,8 @@ Remote mode (replace the URL and key):
         "DOCLING_MCP_CONVERSION_MODE": "remote",
         "DOCLING_MCP_SERVICE_URL": "https://docling-serve.example.com",
         "DOCLING_MCP_SERVICE_API_KEY": "${DOCLING_API_KEY}"
-      }
+      },
+      "lifecycle": { "mode": "keep-alive", "idleTimeoutMs": 1800000 }
     }
   }
 }
@@ -89,6 +91,26 @@ Remote mode (replace the URL and key):
 The server defaults to the `streamable-http` transport on port 8000; pass
 `--transport stdio` for mcporter. To expose only a subset of tools, list the tool groups as
 positional arguments, for example `docling-mcp-server conversion manipulation --transport stdio`.
+
+### Keep the server alive between calls
+
+Converted documents live in the server process's memory cache and are identified by
+`document_key`. A plain `mcporter call` starts a fresh server, so a second call cannot see the
+first call's documents. `"lifecycle": "keep-alive"` makes the mcporter daemon retain one
+process (started automatically) and reuse it for later calls:
+
+```bash
+mcporter call docling.convert_document_into_docling_document source="/abs/path/paper.pdf"
+# {"from_cache": false, "document_key": "..."}
+mcporter call docling.export_docling_document_to_markdown document_key="..."
+# works because the same server is still running
+```
+
+`idleTimeoutMs` retires an unused server, which clears the cache. Set it comfortably above your
+working session (30 minutes above) and call `list_cached_documents` to see what is still there.
+If you cannot use the daemon, do the whole convert → export sequence inside one MCP session
+(for example in a client that keeps the connection open), or save Markdown/JSON to disk before
+disconnecting.
 
 ```bash
 mcporter list docling
@@ -184,6 +206,9 @@ mcporter call --timeout 600000 \
 
 ## Notes and limits
 
+- **Keep-alive for the cache.** Without `"lifecycle": "keep-alive"`, every `mcporter call`
+  starts a new server and `document_key` values from earlier calls are gone. The daemon keeps
+  one process for the configured idle timeout.
 - **Long first run.** The `local` extra installs PyTorch (several GB), and the first
   conversion downloads the models. Model download plus CPU inference can take minutes. Raise
   the mcporter timeout (`--timeout 600000`) and the MCP client timeout; the default 60-second
