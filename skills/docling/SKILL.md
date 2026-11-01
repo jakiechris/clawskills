@@ -39,9 +39,10 @@ instance):
 pip install docling-mcp
 ```
 
-The first local conversion downloads the layout, table-structure and OCR models (several
-hundred MB) into the model cache. If the Hugging Face endpoint is slow or blocked, set
-`HF_ENDPOINT` (for example `https://hf-mirror.com`) or pre-download the models.
+The first local conversion downloads the layout and table-structure models (several hundred
+MB) into the model cache. If the Hugging Face endpoint is slow or blocked, set `HF_ENDPOINT`
+(for example `https://hf-mirror.com`) or pre-download the models. The RapidOCR engine used by
+the standard install ships its OCR models with the package.
 
 ## Register with mcporter
 
